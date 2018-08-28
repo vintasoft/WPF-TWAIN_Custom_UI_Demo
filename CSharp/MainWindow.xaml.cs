@@ -154,19 +154,35 @@ namespace WpfTwainCustomUIDemo
         /// </summary>
         private bool OpenDeviceManager()
         {
-            // try to find the device manager specified by user
-            _deviceManager.IsTwain2Compatible = (bool)twain2CompatibleCheckBox.IsChecked;
-            // if TWAIN device manager is NOT available
-            if (!_deviceManager.IsTwainAvailable)
+            try
             {
-                // try to use another TWAIN device manager
-                _deviceManager.IsTwain2Compatible = (bool)!twain2CompatibleCheckBox.IsChecked;
+                // try to find the device manager specified by user
+                _deviceManager.IsTwain2Compatible = (bool)twain2CompatibleCheckBox.IsChecked;
                 // if TWAIN device manager is NOT available
                 if (!_deviceManager.IsTwainAvailable)
                 {
-                    MessageBox.Show("TWAIN device manager is not found.");
-                    return false;
+                    // try to use another TWAIN device manager
+                    _deviceManager.IsTwain2Compatible = (bool)!twain2CompatibleCheckBox.IsChecked;
+                    // if TWAIN device manager is NOT available
+                    if (!_deviceManager.IsTwainAvailable)
+                    {
+                        MessageBox.Show("TWAIN device manager is not found.");
+                        return false;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                // show dialog with error message
+                MessageBox.Show(ex.Message, "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+
+            // if 64-bit TWAIN2 device manager is used
+            if (IntPtr.Size == 8 && _deviceManager.IsTwain2Compatible)
+            {
+                if (!InitTwain2DeviceManagerMode())
+                    return false;
             }
 
             // open the device manager
@@ -176,6 +192,48 @@ namespace WpfTwainCustomUIDemo
             if (_deviceManager.Devices.Count == 0)
             {
                 MessageBox.Show("No devices found.");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Initializes the device manager mode.
+        /// </summary>
+        private bool InitTwain2DeviceManagerMode()
+        {
+            // create a window that allows to view and edit mode of 64-bit TWAIN2 device manager
+            SelectDeviceManagerModeWindow window = new SelectDeviceManagerModeWindow();
+            // initialize window
+            window.Owner = this;
+            window.Use32BitDevices = _deviceManager.Are32BitDevicesUsed;
+
+            // show dialog
+            if (window.ShowDialog() == true)
+            {
+                // if device manager mode is changed
+                if (window.Use32BitDevices != _deviceManager.Are32BitDevicesUsed)
+                {
+                    try
+                    {
+                        // if 32-bit devices must be used
+                        if (window.Use32BitDevices)
+                            _deviceManager.Use32BitDevices();
+                        else
+                            _deviceManager.Use64BitDevices();
+                    }
+                    catch (TwainDeviceManagerException ex)
+                    {
+                        // show dialog with error message
+                        MessageBox.Show(ex.Message, "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                        return false;
+                    }
+                }
+            }
+            else
+            {
                 return false;
             }
 
@@ -454,8 +512,17 @@ namespace WpfTwainCustomUIDemo
             // close device and device manager
             CloseDeviceAndDeviceManager();
 
-            // change TWAIN 2.0 compatibility
-            _deviceManager.IsTwain2Compatible = (bool)twain2CompatibleCheckBox.IsChecked;
+            try
+            {
+                // change TWAIN 2.0 compatibility
+                _deviceManager.IsTwain2Compatible = (bool)twain2CompatibleCheckBox.IsChecked;
+            }
+            catch (Exception ex)
+            {
+                twain2CompatibleCheckBox.IsChecked ^= true;
+                // show dialog with error message
+                MessageBox.Show(ex.Message, "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
 
             // init devices
             InitDevices();
@@ -604,8 +671,19 @@ namespace WpfTwainCustomUIDemo
 
             // if device is closed
             if (_currentDevice.State == DeviceState.Closed)
-                // open the device
-                _currentDevice.Open();
+            {
+                try
+                {
+                    // open the device
+                    _currentDevice.Open();
+                }
+                catch (Exception ex)
+                {
+                    this.Cursor = Cursors.Arrow;
+                    MessageBox.Show(ex.Message);
+                    return;
+                }
+            }
 
             try
             {
@@ -716,12 +794,22 @@ namespace WpfTwainCustomUIDemo
             _currentDevice.ShowUI = false;
             _currentDevice.ShowIndicators = false;
             _currentDevice.DisableAfterAcquire = true;
-
-
+            
             // if device is closed
             if (_currentDevice.State == DeviceState.Closed)
-                // open the device
-                _currentDevice.Open();
+            {
+                try
+                {
+                    // open the device
+                    _currentDevice.Open();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                    IsImageAcquiring = false;
+                    return;
+                }
+            }
 
 
             // set device capabilities
@@ -843,11 +931,12 @@ namespace WpfTwainCustomUIDemo
             tabPage1.Height = double.NaN;
             tabPage1.VerticalAlignment = VerticalAlignment.Stretch;
             tabPage1.HorizontalAlignment = HorizontalAlignment.Stretch;
-            tabPage1.Header = string.Format("Image {0} [{1}x{2}, {3}, {4}]", _imageCount++,
+            tabPage1.Header = string.Format("Image {0} [{1}x{2}, {3}, {4}]", _imageCount,
                                             e.Image.ImageInfo.Width,
                                             e.Image.ImageInfo.Height,
                                             e.Image.ImageInfo.PixelType,
                                             e.Image.ImageInfo.Resolution);
+            _imageCount = _imageCount + 1;
 
             // create an image control for acquired image
             Image image1 = new Image();
@@ -950,7 +1039,7 @@ namespace WpfTwainCustomUIDemo
             // if values are represented as array or enumeration
             else
             {
-                InitComboBox(xResComboBox, xResCapValue.GetAsFloatArray(), _currentDevice.Resolution.Horizontal);
+                InitComboBox(xResComboBox, xResCapValue.GetAsFloatArray(), _currentDevice.Resolution.XResolution);
 
                 xResComboBox.Visibility = Visibility.Visible;
             }
@@ -988,7 +1077,7 @@ namespace WpfTwainCustomUIDemo
             // if values are represented as array or enumeration
             else
             {
-                InitComboBox(yResComboBox, yResCapValue.GetAsFloatArray(), _currentDevice.Resolution.Vertical);
+                InitComboBox(yResComboBox, yResCapValue.GetAsFloatArray(), _currentDevice.Resolution.YResolution);
 
                 yResComboBox.Visibility = Visibility.Visible;
             }
@@ -1258,7 +1347,7 @@ namespace WpfTwainCustomUIDemo
         private void GetAutoRotate()
         {
             _isAutoRotateAvailable = false;
-            
+
             _autoRotateCap = _currentDevice.Capabilities.Find(DeviceCapabilityId.IAutomaticRotate);
             if (_autoRotateCap == null)
             {
@@ -1355,8 +1444,8 @@ namespace WpfTwainCustomUIDemo
                     float newXRes = (float)xResComboBox.SelectedItem;
                     float newYRes = (float)yResComboBox.SelectedItem;
                     if (_currentDevice.UnitOfMeasure != _unitOfMeasure ||
-                        _currentDevice.Resolution.Horizontal != newXRes ||
-                        _currentDevice.Resolution.Vertical != newYRes)
+                        _currentDevice.Resolution.XResolution != newXRes ||
+                        _currentDevice.Resolution.YResolution != newYRes)
                         _currentDevice.Resolution = new Resolution(newXRes, newYRes, _unitOfMeasure);
                 }
                 catch (TwainDeviceCapabilityException)
@@ -1370,8 +1459,8 @@ namespace WpfTwainCustomUIDemo
                     float newXRes = (float)xResSlider.Value;
                     float newYRes = (float)yResSlider.Value;
                     if (_currentDevice.UnitOfMeasure != _unitOfMeasure ||
-                        _currentDevice.Resolution.Horizontal != newXRes ||
-                        _currentDevice.Resolution.Vertical != newYRes)
+                        _currentDevice.Resolution.XResolution != newXRes ||
+                        _currentDevice.Resolution.YResolution != newYRes)
                         _currentDevice.Resolution = new Resolution(newXRes, newYRes, _unitOfMeasure);
                 }
                 catch (TwainDeviceCapabilityException)
