@@ -142,8 +142,35 @@ namespace WpfTwainCustomUIDemo
         {
             // change the application status and update UI
             IsDeviceChanging = true;
-            // init devices
-            InitDevices();
+            try
+            {
+                // init devices
+                InitDevices();
+            }
+            finally
+            {
+                // change the application status and update UI
+                IsDeviceChanging = false;
+            }
+        }
+
+        /// <summary>
+        /// Returns the message of exception and inner exceptions.
+        /// </summary>
+        private string GetFullExceptionMessage(System.Exception ex)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.AppendLine(ex.Message);
+
+            System.Exception innerException = ex.InnerException;
+            while (innerException != null)
+            {
+                if (ex.Message != innerException.Message)
+                    sb.AppendLine(string.Format("Inner exception: {0}", innerException.Message));
+                innerException = innerException.InnerException;
+            }
+
+            return sb.ToString();
         }
 
 
@@ -158,23 +185,11 @@ namespace WpfTwainCustomUIDemo
             {
                 // try to find the device manager specified by user
                 _deviceManager.IsTwain2Compatible = (bool)twain2CompatibleCheckBox.IsChecked;
-                // if TWAIN device manager is NOT available
-                if (!_deviceManager.IsTwainAvailable)
-                {
-                    // try to use another TWAIN device manager
-                    _deviceManager.IsTwain2Compatible = (bool)!twain2CompatibleCheckBox.IsChecked;
-                    // if TWAIN device manager is NOT available
-                    if (!_deviceManager.IsTwainAvailable)
-                    {
-                        MessageBox.Show("TWAIN device manager is not found.");
-                        return false;
-                    }
-                }
             }
             catch (Exception ex)
             {
                 // show dialog with error message
-                MessageBox.Show(ex.Message, "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(GetFullExceptionMessage(ex), "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
 
@@ -185,8 +200,17 @@ namespace WpfTwainCustomUIDemo
                     return false;
             }
 
-            // open the device manager
-            _deviceManager.Open();
+            try
+            {
+                // open the device manager
+                _deviceManager.Open();
+            }
+            catch (Exception ex)
+            {
+                // show dialog with error message
+                MessageBox.Show(GetFullExceptionMessage(ex), "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
 
             // if no devices are found in the system
             if (_deviceManager.Devices.Count == 0)
@@ -226,7 +250,7 @@ namespace WpfTwainCustomUIDemo
                     catch (TwainDeviceManagerException ex)
                     {
                         // show dialog with error message
-                        MessageBox.Show(ex.Message, "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show(GetFullExceptionMessage(ex), "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
 
                         return false;
                     }
@@ -274,9 +298,6 @@ namespace WpfTwainCustomUIDemo
                 // init device settings
                 InitDeviceSettings();
             }
-
-            // change the application status and update UI
-            IsDeviceChanging = false;
         }
 
         /// <summary>
@@ -295,7 +316,7 @@ namespace WpfTwainCustomUIDemo
                 }
                 catch (TwainDeviceException ex)
                 {
-                    MessageBox.Show(ex.Message);
+                    MessageBox.Show(GetFullExceptionMessage(ex));
                     return;
                 }
             }
@@ -516,16 +537,20 @@ namespace WpfTwainCustomUIDemo
             {
                 // change TWAIN 2.0 compatibility
                 _deviceManager.IsTwain2Compatible = (bool)twain2CompatibleCheckBox.IsChecked;
+
+                // init devices
+                InitDevices();
             }
             catch (Exception ex)
             {
-                twain2CompatibleCheckBox.IsChecked ^= true;
                 // show dialog with error message
-                MessageBox.Show(ex.Message, "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(GetFullExceptionMessage(ex), "TWAIN device manager", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            // init devices
-            InitDevices();
+            finally
+            {
+                // change the application status and update UI
+                IsDeviceChanging = false;
+            }
         }
 
         /// <summary>
@@ -564,11 +589,11 @@ namespace WpfTwainCustomUIDemo
             }
             catch (TwainDeviceException ex)
             {
-                ShowErrorMessage(ex.Message, "Device error");
+                ShowErrorMessage(GetFullExceptionMessage(ex), "Device error");
             }
             catch (TwainInvalidStateException ex)
             {
-                ShowErrorMessage(ex.Message, "Device invalid state");
+                ShowErrorMessage(GetFullExceptionMessage(ex), "Device invalid state");
             }
         }
 
@@ -680,7 +705,7 @@ namespace WpfTwainCustomUIDemo
                 catch (Exception ex)
                 {
                     this.Cursor = Cursors.Arrow;
-                    MessageBox.Show(ex.Message);
+                    MessageBox.Show(GetFullExceptionMessage(ex));
                     return;
                 }
             }
@@ -692,7 +717,7 @@ namespace WpfTwainCustomUIDemo
             }
             catch (TwainException ex)
             {
-                ShowErrorMessage(ex.Message, "Error");
+                ShowErrorMessage(GetFullExceptionMessage(ex), "Error");
             }
 
             this.Cursor = Cursors.Arrow;
@@ -794,7 +819,7 @@ namespace WpfTwainCustomUIDemo
             _currentDevice.ShowUI = false;
             _currentDevice.ShowIndicators = false;
             _currentDevice.DisableAfterAcquire = true;
-            
+
             // if device is closed
             if (_currentDevice.State == DeviceState.Closed)
             {
@@ -805,7 +830,7 @@ namespace WpfTwainCustomUIDemo
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message);
+                    MessageBox.Show(GetFullExceptionMessage(ex));
                     IsImageAcquiring = false;
                     return;
                 }
@@ -868,7 +893,7 @@ namespace WpfTwainCustomUIDemo
             }
             catch (Exception ex)
             {
-                MessageBox.Show(string.Format("Error: {0}", ex.Message));
+                MessageBox.Show(string.Format("Error: {0}", GetFullExceptionMessage(ex)));
                 // change the application status and update UI
                 IsImageAcquiring = false;
             }
