@@ -82,6 +82,9 @@ namespace WpfTwainCustomUIDemo
 
         public MainWindow()
         {
+            // register the evaluation license for VintaSoft TWAIN .NET SDK
+            Vintasoft.Twain.TwainGlobalSettings.Register("REG_USER", "REG_EMAIL", "EXPIRATION_DATE", "REG_CODE");
+
             InitializeComponent();
 
             this.Title = string.Format("VintaSoft WPF TWAIN Custom UI Demo v{0}", TwainGlobalSettings.ProductVersion);
