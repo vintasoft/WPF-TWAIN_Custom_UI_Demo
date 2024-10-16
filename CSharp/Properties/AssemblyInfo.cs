@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("VintaSoft WPF TWAIN Custom UI Demo")]
 [assembly: AssemblyDescription("WPF TWAIN custom User Interface demo")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("VintaSoft Ltd.")]
+[assembly: AssemblyCompany("VintaSoft Llc.")]
 [assembly: AssemblyProduct("WpfTwainCustomUIDemo")]
-[assembly: AssemblyCopyright("Copyright VintaSoft Ltd. 2024")]
+[assembly: AssemblyCopyright("Copyright VintaSoft Llc. 2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
